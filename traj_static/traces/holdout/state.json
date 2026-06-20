@@ -1,0 +1,21 @@
+{
+  "_data_files": [
+    {
+      "filename": "data-00000-of-00001.arrow"
+    }
+  ],
+  "_fingerprint": "333fa7b5b9e174ee",
+  "_format_columns": [
+    "problem",
+    "solution",
+    "input_ids",
+    "trace",
+    "is_raw_correct",
+    "trace_af",
+    "is_af_correct"
+  ],
+  "_format_kwargs": {},
+  "_format_type": null,
+  "_output_all_columns": false,
+  "_split": null
+}
