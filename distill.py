@@ -131,6 +131,8 @@ def main(cfg: DictConfig):
         tokenizer.pad_token_id = 128004
         tokenizer.eos_token_id = eos_token_id
         tokenizer.add_eos_token = False
+    elif "smol" in cfg.tokenizer.lower():
+        pass  # SmolLM2-Instruct already has pad=<|im_end|> and uses im_start/im_end like Qwen
     elif "qwen" in cfg.tokenizer.lower():
         eos_token = tokenizer.eos_token
         special_tokens = {"pad_token": "[PAD]"}
@@ -193,7 +195,7 @@ def main(cfg: DictConfig):
             # Extract assistant responses from teacher traces
             for response in examples[trace_colname]:
                 # Split on assistant marker to get only the response portion
-                fixed_response = response.split("<｜Assistant｜>")[1]
+                fixed_response = response.split("<|im_start|>assistant\n")[1]
                 # Replace custom EOS tokens with standard tokenizer EOS
                 fixed_response = fixed_response.replace("<｜end▁of▁sentence｜>", tokenizer.eos_token)
                 responses.append(fixed_response)
@@ -217,7 +219,7 @@ def main(cfg: DictConfig):
             preprocess_function,
             batched=True,
             batch_size=16384,
-            num_proc=96,
+            num_proc=1,
             remove_columns=list(train_traces.column_names),
             desc="Preprocessing train dataset",
             load_from_cache_file=True
@@ -234,7 +236,7 @@ def main(cfg: DictConfig):
             preprocess_function,
             batched=True,
             batch_size=16384,
-            num_proc=96,
+            num_proc=1,
             remove_columns=list(holdout_traces.column_names),
             desc="Preprocessing holdout dataset",
             load_from_cache_file=True
@@ -254,12 +256,15 @@ def main(cfg: DictConfig):
     # Set up completion-only training to compute loss only on assistant responses
     # This is crucial for distillation as we want the student to learn the reasoning
     # patterns from the teacher, not just copy the entire input
-    if 'llama' in cfg.student.lower():
+    # preprocess_function re-templates each trace with THIS tokenizer's chat template,
+    # so the tokenized text carries the student family's marker. Key off cfg.tokenizer
+    # (stable) not cfg.student (becomes a local checkpoint path on continuation rounds).
+    if 'llama' in cfg.tokenizer.lower():
         response_string = "<|start_header_id|>assistant<|end_header_id|>\n\n"
-    elif "qwen" in cfg.student.lower():
+    elif "qwen" in cfg.tokenizer.lower() or "smol" in cfg.tokenizer.lower():
         response_string = "<|im_start|>assistant\n"
     else:
-        raise ValueError(f"Unknown model {cfg.student}")
+        raise ValueError(f"Unknown tokenizer {cfg.tokenizer}")
     
     collator = DataCollatorForCompletionOnlyLM(
         response_template=tokenizer.encode(response_string, add_special_tokens=False),

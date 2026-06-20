@@ -212,7 +212,7 @@ def main(cfg: DictConfig):
     teacher = AutoModelForCausalLM.from_pretrained(
         cfg.teacher,
         trust_remote_code=True,
-        attn_implementation="flash_attention_2",  # Use Flash Attention for efficiency
+        attn_implementation="sdpa",  # Use Flash Attention for efficiency
         torch_dtype=torch.bfloat16,
         use_cache=True,
     ).to(accelerator.device)
@@ -231,7 +231,7 @@ def main(cfg: DictConfig):
         student = CachedModelWrapper(AutoModelForCausalLM.from_pretrained(
             cfg.proxy_student,
             trust_remote_code=True,
-            attn_implementation="flash_attention_2",
+            attn_implementation="sdpa",
             torch_dtype=torch.float16,
             use_cache=True,
         ).to(accelerator.device))
@@ -239,7 +239,7 @@ def main(cfg: DictConfig):
         dstudent = CachedModelWrapper(AutoModelForCausalLM.from_pretrained(
             cfg.proxy_student,
             trust_remote_code=True,
-            attn_implementation="flash_attention_2",
+            attn_implementation="sdpa",
             torch_dtype=torch.float16,
             use_cache=True,
         ).to(accelerator.device))
@@ -256,7 +256,7 @@ def main(cfg: DictConfig):
         used_grads = set()
         param_sq, grad_sq, num_params = 0, 0, 0
         for name, param in student.model.named_parameters():
-            module_name = 'module.' + name
+            module_name = 'module.' + name if ('module.' + name) in grads else name
             if module_name in grads:
                 grad = grads[module_name].to(param.device, dtype=torch.float32)
                 param.data = (param.data.to(torch.float32) + cfg.eps * grad).to(param.data.dtype)
@@ -273,7 +273,7 @@ def main(cfg: DictConfig):
         # Apply -eps * gradient perturbation to dstudent model  
         used_grads = set()
         for name, param in dstudent.model.named_parameters():
-            module_name = 'module.' + name
+            module_name = 'module.' + name if ('module.' + name) in grads else name
             if module_name in grads:
                 grad = grads[module_name].to(param.device, dtype=torch.float32)
                 param.data = (param.data.to(torch.float32) - cfg.eps * grad).to(param.data.dtype)
@@ -315,7 +315,7 @@ def main(cfg: DictConfig):
         proc_dataset = dataset.map(
             preprocess_function,
             batched=True,
-            num_proc=96,
+            num_proc=1,
             desc="Preprocessing dataset",
             load_from_cache_file=True,
         )

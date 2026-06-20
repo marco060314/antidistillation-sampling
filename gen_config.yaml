@@ -19,7 +19,7 @@ antidistillation: null # This will be set according to lam by the code.
 eps: 1e-2
 proxy_student: ${oc.env:PROXY_STUDENT, "Qwen/Qwen2.5-3B"}
 grad_path: null
-
+repetition_penalty: 1.0
 # Dataset 
 data_split: gsm8k_holdout  # Dataset split
 max_samples: null

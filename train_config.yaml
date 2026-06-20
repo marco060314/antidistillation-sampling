@@ -17,7 +17,7 @@ lora_dropout: 0.0
 
 seed: 69
 wandb: true
-
+repetition_penalty: 1.0
 # Optimization parameters
 lr: 5e-4
 weight_decay: 0.1
