@@ -308,7 +308,7 @@ def main(cfg: DictConfig):
             messages = [[{"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": problem.strip() + "\n"}] for problem in examples["problem"]]
             # Apply chat template to get tokenized inputs
-            tokens = [toks for toks in tokenizer.apply_chat_template(messages, add_generation_prompt=True)]
+            tokens = tokenizer.apply_chat_template(messages, add_generation_prompt=True)["input_ids"]
             seq_lengths = [len(toks) for toks in tokens]
             return {"input_ids": tokens, "seq_lengths": seq_lengths}
 

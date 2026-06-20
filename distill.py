@@ -148,7 +148,7 @@ def main(cfg: DictConfig):
     student = AutoModelForCausalLM.from_pretrained(
         cfg.student,
         trust_remote_code=True,
-        attn_implementation="flash_attention_2",  # Use Flash Attention for efficiency
+        attn_implementation="sdpa",  # Use Flash Attention for efficiency
         torch_dtype=torch.bfloat16,  # Mixed precision for memory efficiency
         use_cache=True,
     )
@@ -208,7 +208,7 @@ def main(cfg: DictConfig):
                 for problem, response in zip(examples["problem"], responses)]
             
             # Apply chat template and tokenize
-            tokens = tokenizer.apply_chat_template(messages, add_generation_prompt=False)
+            tokens = tokenizer.apply_chat_template(messages, add_generation_prompt=False)["input_ids"]
             tokens = [toks[:suffix_len] for toks in tokens]  # Remove extra tokens
             tok_lengths = [len(toks) for toks in tokens]
             return {"input_ids": tokens, "token_lengths": tok_lengths}
@@ -286,9 +286,9 @@ def main(cfg: DictConfig):
         processing_class=tokenizer,
         data_collator=collator,
         args=SFTConfig(
-            bf16=student.config.use_bfloat16,  # Use bfloat16 if model supports it
+            bf16=True,  # Use bfloat16 if model supports it
             do_eval=cfg.do_eval,
-            max_length=cfg.max_length,
+            max_seq_length=cfg.max_length,
             eval_strategy="steps" if cfg.do_eval else "no",
             eval_steps=eval_steps,
             eval_on_start=True if cfg.do_eval else False,
@@ -305,10 +305,9 @@ def main(cfg: DictConfig):
             optim='adamw_torch_fused',         # Fused AdamW for efficiency
             num_train_epochs=cfg.num_epochs,
             output_dir=cfg.model_path,
-            overwrite_output_dir=True,
             per_device_train_batch_size=cfg.per_device_batch_size,
             per_device_eval_batch_size=cfg.per_device_batch_size*2,  # Larger eval batch
-            report_to="wandb" if cfg.wandb else None,
+            report_to="wandb" if cfg.wandb else "none",
             save_strategy="steps",
             save_steps=1000,
             save_total_limit=3,               # Keep only 3 most recent checkpoints
@@ -317,7 +316,6 @@ def main(cfg: DictConfig):
             remove_unused_columns=False,
             label_names=["labels"],
             ddp_find_unused_parameters=False,  # DDP optimization
-            save_safetensors=False,            # Use pickle format for compatibility
         ),
     )
 
@@ -387,7 +385,7 @@ def main(cfg: DictConfig):
         # Save final model and tokenizer
         final_output_dir = os.path.join(cfg.model_path, "final")
         trainer.save_model(final_output_dir)
-        trainer.tokenizer.save_pretrained(final_output_dir)
+        trainer.processing_class.save_pretrained(final_output_dir)
 
         # Clean up wandb logging
         if cfg.wandb:
