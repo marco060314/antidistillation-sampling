@@ -60,7 +60,7 @@ requires-dist = [
     { name = "peft", specifier = ">=0.15.0" },
     { name = "ripgrep", specifier = ">=14.1.0" },
     { name = "transformers", specifier = ">=4.50.0" },
-    { name = "trl", specifier = ">=0.16.0" },
+    { name = "trl", specifier = ">=0.15,<0.19" },
     { name = "typer", specifier = ">=0.15.2" },
     { name = "wandb", specifier = ">=0.19.8" },
     { name = "yq", specifier = ">=3.4.3" },
@@ -2334,18 +2334,16 @@ wheels = [
 
 [[package]]
 name = "trl"
-version = "1.6.0"
+version = "0.18.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "accelerate" },
     { name = "datasets" },
-    { name = "jinja2" },
-    { name = "packaging" },
     { name = "transformers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/15/71/053cfddac9ec13a444b48167180e8c6c7dbd9d7b02dcfc6ad400b11e8274/trl-1.6.0.tar.gz", hash = "sha256:c24692f6436eb0ee8666965f37513b198b828eb76690cd330446bce67182a029", size = 673487, upload-time = "2026-06-11T21:45:34.256Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/c3/f55ecb8c64f9ec2b4ae9006e090727946a6acd76d00998dfbb0f424e0d75/trl-0.18.2.tar.gz", hash = "sha256:dae08ed28ca7d9228e07f37cd4a5eec4071ca4e794fffe847ebfc269b78060de", size = 383357, upload-time = "2025-06-15T13:20:41.675Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ae/55/9779cb8a5fd066afa719531f740018078a4ca4c83406f2d68bda2b4b26e6/trl-1.6.0-py3-none-any.whl", hash = "sha256:78023ee1e8ba11e9b7eaa9077c8d37b3581ff7c7ddf32fbe1f19a22fe2c76360", size = 825130, upload-time = "2026-06-11T21:45:32.526Z" },
+    { url = "https://files.pythonhosted.org/packages/04/57/f1cf3cf20fa78a3dcd6c7cc95e9f635bdf4fe12f00894d648b0cb5e42e54/trl-0.18.2-py3-none-any.whl", hash = "sha256:6ed81faf877904e3ec0bd7a4e478837b1b93c901c53e168508799edde8cc33fa", size = 366449, upload-time = "2025-06-15T13:20:06.414Z" },
 ]
 
 [[package]]
