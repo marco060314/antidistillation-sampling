@@ -291,7 +291,7 @@ def main(cfg: DictConfig):
     if "gsm8k" in cfg.data_split:
         dataset = load_gsm8k(split=cfg.data_split.split("_")[1])
     elif "math" in cfg.data_split:
-        dataset = load_hendrycks_math_dataset(split=cfg.data_split.split("_")[1])
+        dataset = load_hendrycks_math_dataset(split=cfg.data_split.split("_")[-1])
     elif "mmlu" in cfg.data_split:
         dataset = load_mmlu(split=cfg.data_split.split("_")[1])
     else:
