@@ -195,7 +195,10 @@ def main(cfg: DictConfig):
             # Extract assistant responses from teacher traces
             for response in examples[trace_colname]:
                 # Split on assistant marker to get only the response portion
-                fixed_response = response.split("<|im_start|>assistant\n")[1]
+                _parts = response.split("<｜Assistant｜>")
+                if len(_parts) < 2:
+                    continue
+                fixed_response = _parts[1]
                 # Replace custom EOS tokens with standard tokenizer EOS
                 fixed_response = fixed_response.replace("<｜end▁of▁sentence｜>", tokenizer.eos_token)
                 responses.append(fixed_response)
