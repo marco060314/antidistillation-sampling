@@ -297,6 +297,10 @@ def main(cfg: DictConfig):
     else:
         raise ValueError(f"Unknown dataset and split: {cfg.data_split}")
 
+    # Drop pathologically long problems that blow past max_length.
+    _pcol = 'problem' if 'problem' in dataset.column_names else ('question' if 'question' in dataset.column_names else None)
+    if _pcol is not None:
+        dataset = dataset.filter(lambda x: len(x[_pcol]) < 1500)
     # Limit dataset size if specified
     if cfg.max_samples is not None:
         dataset = dataset.take(min(cfg.max_samples, len(dataset)))
