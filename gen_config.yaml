@@ -40,3 +40,4 @@ trace_dir: ${exp_dir}/traces  # Trace directory
 trace_name: REPLACE_ME 
 trace_path: ${trace_dir}/${trace_name}  # Path to save the dataset
 trace_colname: "trace"
+repetition_penalty: 1.0
