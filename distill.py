@@ -131,8 +131,6 @@ def main(cfg: DictConfig):
         tokenizer.pad_token_id = 128004
         tokenizer.eos_token_id = eos_token_id
         tokenizer.add_eos_token = False
-    elif "smol" in cfg.tokenizer.lower():
-        pass  # SmolLM2-Instruct already has pad=<|im_end|> and uses im_start/im_end like Qwen
     elif "qwen" in cfg.tokenizer.lower():
         eos_token = tokenizer.eos_token
         special_tokens = {"pad_token": "[PAD]"}
@@ -148,7 +146,7 @@ def main(cfg: DictConfig):
     student = AutoModelForCausalLM.from_pretrained(
         cfg.student,
         trust_remote_code=True,
-        attn_implementation="sdpa",  # Use Flash Attention for efficiency
+        attn_implementation="eager",  # Use Flash Attention for efficiency
         torch_dtype=torch.bfloat16,  # Mixed precision for memory efficiency
         use_cache=True,
     )
@@ -195,10 +193,7 @@ def main(cfg: DictConfig):
             # Extract assistant responses from teacher traces
             for response in examples[trace_colname]:
                 # Split on assistant marker to get only the response portion
-                _parts = response.split("<｜Assistant｜>")
-                if len(_parts) < 2:
-                    continue
-                fixed_response = _parts[1]
+                fixed_response = response.split("<｜Assistant｜>")[1]
                 # Replace custom EOS tokens with standard tokenizer EOS
                 fixed_response = fixed_response.replace("<｜end▁of▁sentence｜>", tokenizer.eos_token)
                 responses.append(fixed_response)
@@ -211,7 +206,7 @@ def main(cfg: DictConfig):
                 for problem, response in zip(examples["problem"], responses)]
             
             # Apply chat template and tokenize
-            tokens = tokenizer.apply_chat_template(messages, add_generation_prompt=False)["input_ids"]
+            tokens = tokenizer.apply_chat_template(messages, add_generation_prompt=False)
             tokens = [toks[:suffix_len] for toks in tokens]  # Remove extra tokens
             tok_lengths = [len(toks) for toks in tokens]
             return {"input_ids": tokens, "token_lengths": tok_lengths}
@@ -259,15 +254,12 @@ def main(cfg: DictConfig):
     # Set up completion-only training to compute loss only on assistant responses
     # This is crucial for distillation as we want the student to learn the reasoning
     # patterns from the teacher, not just copy the entire input
-    # preprocess_function re-templates each trace with THIS tokenizer's chat template,
-    # so the tokenized text carries the student family's marker. Key off cfg.tokenizer
-    # (stable) not cfg.student (becomes a local checkpoint path on continuation rounds).
-    if 'llama' in cfg.tokenizer.lower():
+    if 'llama' in cfg.student.lower():
         response_string = "<|start_header_id|>assistant<|end_header_id|>\n\n"
-    elif "qwen" in cfg.tokenizer.lower() or "smol" in cfg.tokenizer.lower():
+    elif "qwen" in cfg.student.lower():
         response_string = "<|im_start|>assistant\n"
     else:
-        raise ValueError(f"Unknown tokenizer {cfg.tokenizer}")
+        raise ValueError(f"Unknown model {cfg.student}")
     
     collator = DataCollatorForCompletionOnlyLM(
         response_template=tokenizer.encode(response_string, add_special_tokens=False),
@@ -289,9 +281,9 @@ def main(cfg: DictConfig):
         processing_class=tokenizer,
         data_collator=collator,
         args=SFTConfig(
-            bf16=True,  # Use bfloat16 if model supports it
+            bf16=student.config.use_bfloat16,  # Use bfloat16 if model supports it
             do_eval=cfg.do_eval,
-            max_seq_length=cfg.max_length,
+            max_length=cfg.max_length,
             eval_strategy="steps" if cfg.do_eval else "no",
             eval_steps=eval_steps,
             eval_on_start=True if cfg.do_eval else False,
@@ -308,9 +300,10 @@ def main(cfg: DictConfig):
             optim='adamw_torch_fused',         # Fused AdamW for efficiency
             num_train_epochs=cfg.num_epochs,
             output_dir=cfg.model_path,
+            overwrite_output_dir=True,
             per_device_train_batch_size=cfg.per_device_batch_size,
             per_device_eval_batch_size=cfg.per_device_batch_size*2,  # Larger eval batch
-            report_to="wandb" if cfg.wandb else "none",
+            report_to="wandb" if cfg.wandb else None,
             save_strategy="steps",
             save_steps=1000,
             save_total_limit=3,               # Keep only 3 most recent checkpoints
@@ -319,6 +312,7 @@ def main(cfg: DictConfig):
             remove_unused_columns=False,
             label_names=["labels"],
             ddp_find_unused_parameters=False,  # DDP optimization
+            save_safetensors=False,            # Use pickle format for compatibility
         ),
     )
 
@@ -388,7 +382,7 @@ def main(cfg: DictConfig):
         # Save final model and tokenizer
         final_output_dir = os.path.join(cfg.model_path, "final")
         trainer.save_model(final_output_dir)
-        trainer.processing_class.save_pretrained(final_output_dir)
+        trainer.tokenizer.save_pretrained(final_output_dir)
 
         # Clean up wandb logging
         if cfg.wandb:

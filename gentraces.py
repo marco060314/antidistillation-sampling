@@ -212,7 +212,7 @@ def main(cfg: DictConfig):
     teacher = AutoModelForCausalLM.from_pretrained(
         cfg.teacher,
         trust_remote_code=True,
-        attn_implementation="sdpa",  # Use Flash Attention for efficiency
+        attn_implementation="eager",  # Use Flash Attention for efficiency
         torch_dtype=torch.bfloat16,
         use_cache=True,
     ).to(accelerator.device)
@@ -231,7 +231,7 @@ def main(cfg: DictConfig):
         student = CachedModelWrapper(AutoModelForCausalLM.from_pretrained(
             cfg.proxy_student,
             trust_remote_code=True,
-            attn_implementation="sdpa",
+            attn_implementation="eager",
             torch_dtype=torch.float16,
             use_cache=True,
         ).to(accelerator.device))
@@ -239,7 +239,7 @@ def main(cfg: DictConfig):
         dstudent = CachedModelWrapper(AutoModelForCausalLM.from_pretrained(
             cfg.proxy_student,
             trust_remote_code=True,
-            attn_implementation="sdpa",
+            attn_implementation="eager",
             torch_dtype=torch.float16,
             use_cache=True,
         ).to(accelerator.device))
@@ -256,7 +256,7 @@ def main(cfg: DictConfig):
         used_grads = set()
         param_sq, grad_sq, num_params = 0, 0, 0
         for name, param in student.model.named_parameters():
-            module_name = 'module.' + name if ('module.' + name) in grads else name
+            module_name = 'module.' + name
             if module_name in grads:
                 grad = grads[module_name].to(param.device, dtype=torch.float32)
                 param.data = (param.data.to(torch.float32) + cfg.eps * grad).to(param.data.dtype)
@@ -273,7 +273,7 @@ def main(cfg: DictConfig):
         # Apply -eps * gradient perturbation to dstudent model  
         used_grads = set()
         for name, param in dstudent.model.named_parameters():
-            module_name = 'module.' + name if ('module.' + name) in grads else name
+            module_name = 'module.' + name
             if module_name in grads:
                 grad = grads[module_name].to(param.device, dtype=torch.float32)
                 param.data = (param.data.to(torch.float32) - cfg.eps * grad).to(param.data.dtype)
@@ -289,18 +289,14 @@ def main(cfg: DictConfig):
     # ============================================================================
     # Load the appropriate dataset based on configuration
     if "gsm8k" in cfg.data_split:
-        dataset = load_gsm8k(split=cfg.data_split.split("_")[1])
+        dataset = load_gsm8k(split=cfg.data_split.split("_")[-1])
     elif "math" in cfg.data_split:
         dataset = load_hendrycks_math_dataset(split=cfg.data_split.split("_")[-1])
     elif "mmlu" in cfg.data_split:
-        dataset = load_mmlu(split=cfg.data_split.split("_")[1])
+        dataset = load_mmlu(split=cfg.data_split.split("_")[-1])
     else:
         raise ValueError(f"Unknown dataset and split: {cfg.data_split}")
 
-    # Drop pathologically long problems that blow past max_length.
-    _pcol = 'problem' if 'problem' in dataset.column_names else ('question' if 'question' in dataset.column_names else None)
-    if _pcol is not None:
-        dataset = dataset.filter(lambda x: len(x[_pcol]) < 1500)
     # Limit dataset size if specified
     if cfg.max_samples is not None:
         dataset = dataset.take(min(cfg.max_samples, len(dataset)))
@@ -312,7 +308,7 @@ def main(cfg: DictConfig):
             messages = [[{"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": problem.strip() + "\n"}] for problem in examples["problem"]]
             # Apply chat template to get tokenized inputs
-            tokens = tokenizer.apply_chat_template(messages, add_generation_prompt=True)["input_ids"]
+            tokens = [toks for toks in tokenizer.apply_chat_template(messages, add_generation_prompt=True)]
             seq_lengths = [len(toks) for toks in tokens]
             return {"input_ids": tokens, "seq_lengths": seq_lengths}
 

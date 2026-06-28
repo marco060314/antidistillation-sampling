@@ -56,7 +56,6 @@ def load_hendrycks_math_dataset(split="train"):
     subsets = ['algebra', 'counting_and_probability', 'geometry', 'intermediate_algebra', 'number_theory', 'prealgebra', 'precalculus']
     datasets = [load_dataset('EleutherAI/hendrycks_math', s, split=ds_split) for s in subsets]
     dataset = concatenate_datasets(datasets)
-    dataset = dataset.filter(lambda x: x['level'] in ['Level 4', 'Level 5'])
 
     if ds_split == "test":
         return dataset
