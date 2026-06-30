@@ -232,7 +232,7 @@ def main(cfg: DictConfig):
             cfg.proxy_student,
             trust_remote_code=True,
             attn_implementation="eager",
-            torch_dtype=torch.float16,
+            torch_dtype=torch.bfloat16,
             use_cache=True,
         ).to(accelerator.device))
         
@@ -240,7 +240,7 @@ def main(cfg: DictConfig):
             cfg.proxy_student,
             trust_remote_code=True,
             attn_implementation="eager",
-            torch_dtype=torch.float16,
+            torch_dtype=torch.bfloat16,
             use_cache=True,
         ).to(accelerator.device))
 
@@ -256,7 +256,7 @@ def main(cfg: DictConfig):
         used_grads = set()
         param_sq, grad_sq, num_params = 0, 0, 0
         for name, param in student.model.named_parameters():
-            module_name = 'module.' + name
+            module_name = name
             if module_name in grads:
                 grad = grads[module_name].to(param.device, dtype=torch.float32)
                 param.data = (param.data.to(torch.float32) + cfg.eps * grad).to(param.data.dtype)
@@ -273,7 +273,7 @@ def main(cfg: DictConfig):
         # Apply -eps * gradient perturbation to dstudent model  
         used_grads = set()
         for name, param in dstudent.model.named_parameters():
-            module_name = 'module.' + name
+            module_name = name
             if module_name in grads:
                 grad = grads[module_name].to(param.device, dtype=torch.float32)
                 param.data = (param.data.to(torch.float32) - cfg.eps * grad).to(param.data.dtype)
@@ -383,9 +383,12 @@ def main(cfg: DictConfig):
             
             # Compute antidistillation term using finite difference approximation
             ad_term = (self.lam / (2*self.eps)) * (out_target.float() - out_Dtarget.float())
+            # Numerical guard: sanitize non-finite values from perturbed-proxy logits
+            ad_term = torch.nan_to_num(ad_term, nan=0.0, posinf=0.0, neginf=0.0)
 
             # Add antidistillation term to original logits
             scores = scores.float() + ad_term
+            scores = torch.nan_to_num(scores, nan=-1e9, posinf=1e9, neginf=-1e9)
             
             return scores
 

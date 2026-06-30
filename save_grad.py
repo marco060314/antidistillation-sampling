@@ -89,7 +89,7 @@ if __name__ == "__main__":
             setattr(args, key, value)
 
     # Initialize random seeds for reproducibility
-    init(os.getenv("USER"), args.seed if args.seed is not None else 0, "babel" in socket.gethostname())
+    init(os.getenv("USER"), args.seed, "babel" in socket.gethostname())
 
     # ============================================================================
     # TOKENIZER SETUP
@@ -120,7 +120,7 @@ if __name__ == "__main__":
         args.proxy_student,
         trust_remote_code=True,
         # Flash Attention disabled for gradient computation to ensure precision
-        torch_dtype=torch.float32,  # Higher precision for gradients
+        torch_dtype=torch.bfloat16,
         use_cache=True,
     )
     model.resize_token_embeddings(len(tokenizer))
@@ -147,8 +147,6 @@ if __name__ == "__main__":
             # Remove BOS token if present to avoid duplication
             if tokenizer.bos_token:
                 traces = [text.replace(tokenizer.bos_token, "", 1) for text in examples[args.trace_colname]]
-            else:
-                traces = list(examples[args.trace_colname])
             
             # Tokenize the traces
             tokenized = tokenizer(
@@ -164,7 +162,7 @@ if __name__ == "__main__":
         input_ds = ds.map(
             preprocessor,
             batched=True,
-            num_proc=1,
+            num_proc=96,
             remove_columns=ds.column_names,
             desc="Preprocessing dataset",
             load_from_cache_file=True
@@ -184,7 +182,7 @@ if __name__ == "__main__":
     # Set up completion-only data collator to compute loss only on assistant responses
     # This is crucial because we only want gradients from the reasoning/answer portions,
     # not from the user prompts or system messages
-    response_str = "<|im_start|>assistant\n"
+    response_str = "<｜Assistant｜>"  # Assistant response marker for loss computation
     data_collator = DataCollatorForCompletionOnlyLM(
         response_template=tokenizer.encode(response_str, add_special_tokens=False),
         tokenizer=tokenizer,
@@ -240,6 +238,7 @@ if __name__ == "__main__":
         for name, param in model.named_parameters():
             if param.requires_grad and param.grad is not None:
                 grads[name].add_(param.grad)
+        model.zero_grad(set_to_none=True)
         
         # Clear gradients for next iteration
         model.zero_grad()
@@ -270,21 +269,12 @@ if __name__ == "__main__":
     # Save the averaged gradients for use in antidistillation sampling
     if accelerator.is_main_process:
         grad_save_path = os.path.join(args.exp_dir, "student_grads.pt")
-
-        # Log gradient statistics BEFORE casting (fp32 norm is the accurate one)
+        torch.save(grads, grad_save_path)
+        print(f"Saved average gradients to {grad_save_path}")
+        
+        # Log gradient statistics for debugging
         total_grad_norm = sum(torch.norm(grad).item() ** 2 for grad in grads.values()) ** 0.5
         print(f"Total gradient norm: {total_grad_norm:.2e}")
         print(f"Number of parameters with gradients: {len(grads)}")
-
-        # Free the model before serializing to leave RAM headroom for the save
-        del model
-        import gc; gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-
-        # Cast to bf16 (~2GB -> ~1GB on disk); gentraces upcasts to fp32 on load
-        grads = {k: v.to(torch.bfloat16) for k, v in grads.items()}
-        torch.save(grads, grad_save_path)
-        print(f"Saved average gradients to {grad_save_path}")
 
     accelerator.end_training()

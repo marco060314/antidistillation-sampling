@@ -1,5 +1,10 @@
-logs/
-wandb/
+# big regenerable artifacts
+hf_cache/
+*.pt
+math_repl/models/
+math_repl/traces/
+math_repl/metadata/
+*.log
 __pycache__/
-experiments/
-params_temp.txt
+*.pyc
+.venv/

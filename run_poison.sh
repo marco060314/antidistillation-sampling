@@ -8,8 +8,8 @@ PROXY="Qwen/Qwen2.5-3B"
 STUDENT="meta-llama/Llama-3.2-3B"
 EXP="math_repl"
 SEED=42
-LAM=0.0868   # paper's MATH lambda
-EPS=0.01
+LAM=0.005
+EPS=0.0001
 TAU=0.6
 
 # STAGE 2: proxy gradient (reuses existing holdout). Skips if grad exists.
@@ -22,16 +22,16 @@ fi
 if [ ! -e "${EXP}/traces/train_clean" ]; then
   echo "=== STAGE 3a: clean train traces (lam=0) ==="
   $PY gentraces.py teacher=${TEACHER} proxy_student=${PROXY} exp_dir=${EXP} seed=${SEED} \
-    data_split=hendrycks_math_train max_samples=1000 batch_size=64 \
+    data_split=hendrycks_math_train max_samples=1000 batch_size=16 \
     max_length=2048 max_prompt_length=1024 tau=${TAU} lam=0.0 eps=${EPS} \
     trace_name=train_clean use_wandb=false
 fi
 
-# STAGE 3b: POISONED train traces (lam=0.0868)
+# STAGE 3b: POISONED train traces (lam=0.005)
 if [ ! -e "${EXP}/traces/train_poison" ]; then
   echo "=== STAGE 3b: poisoned train traces (lam=${LAM}) ==="
   $PY gentraces.py teacher=${TEACHER} proxy_student=${PROXY} exp_dir=${EXP} seed=${SEED} \
-    data_split=hendrycks_math_train grad_path=${EXP}/student_grads.pt max_samples=1000 batch_size=48 \
+    data_split=hendrycks_math_train grad_path=${EXP}/student_grads.pt max_samples=1000 batch_size=16 \
     max_length=2048 max_prompt_length=1024 tau=${TAU} lam=${LAM} eps=${EPS} \
     trace_name=train_poison use_wandb=false
 fi
@@ -57,13 +57,13 @@ fi
 # STAGE 5a: eval clean-distilled student
 echo "=== STAGE 5a: eval (clean student) ==="
 $PY gentraces.py teacher=${EXP}/models/student_clean/final is_teacher=false exp_dir=${EXP} seed=${SEED} \
-  data_split=hendrycks_math_test max_samples=500 batch_size=64 \
+  data_split=hendrycks_math_test max_samples=500 batch_size=32 \
   max_length=2048 max_prompt_length=1024 trace_name=eval_train_clean use_wandb=false
 
 # STAGE 5b: eval poison-distilled student
 echo "=== STAGE 5b: eval (poison student) ==="
 $PY gentraces.py teacher=${EXP}/models/student_poison/final is_teacher=false exp_dir=${EXP} seed=${SEED} \
-  data_split=hendrycks_math_test max_samples=500 batch_size=64 \
+  data_split=hendrycks_math_test max_samples=500 batch_size=32 \
   max_length=2048 max_prompt_length=1024 trace_name=eval_train_poison use_wandb=false
 
 echo "=== RESULTS ==="

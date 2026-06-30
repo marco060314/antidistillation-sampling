@@ -1,0 +1,43 @@
+seed: 42
+teacher: math_repl/models/student_poison007/final
+tokenizer: math_repl/models/student_poison007/final
+teacher_cfg: null
+is_teacher: false
+lam: 0.0
+wandb_lam: 1.0e-08
+antidistillation: false
+eps: 0.01
+proxy_student: Qwen/Qwen2.5-3B
+grad_path: null
+data_split: hendrycks_math_test
+max_samples: 500
+batch_size: 64
+max_length: 2048
+max_prompt_length: 1024
+tau: 0.0
+answer_force: true
+use_wandb: false
+exp_dir: math_repl
+metadata_dir: math_repl/metadata
+trace_registry: math_repl/metadata/trace_registry.jsonl
+trace_dir: math_repl/traces
+trace_name: eval_poison007
+trace_path: math_repl/traces/eval_poison007
+trace_colname: trace
+repetition_penalty: 1.0
+hydra:
+  run_dir: math_repl/metadata/{now:yyyy-MM-dd_HH-mm-ss}
+  job_name: gentraces
+  cwd: /antidistillation-sampling
+stats:
+  raw_accuracy: 0.048
+  af_accuracy: 0.114
+  trace_len_stats:
+    count: 500.0
+    mean: 1667.732
+    std: 325.18134323478023
+    min: 346.0
+    25%: 1401.5
+    50%: 1703.0
+    75%: 1963.0
+    max: 2049.0

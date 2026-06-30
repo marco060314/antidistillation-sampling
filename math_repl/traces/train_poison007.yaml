@@ -1,0 +1,43 @@
+seed: 42
+teacher: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+tokenizer: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+teacher_cfg: null
+is_teacher: false
+lam: 0.007
+wandb_lam: 0.007
+antidistillation: true
+eps: 0.0001
+proxy_student: Qwen/Qwen2.5-3B
+grad_path: math_repl/student_grads.pt
+data_split: hendrycks_math_train
+max_samples: 1000
+batch_size: 16
+max_length: 2048
+max_prompt_length: 1024
+tau: 0.6
+answer_force: true
+use_wandb: false
+exp_dir: math_repl
+metadata_dir: math_repl/metadata
+trace_registry: math_repl/metadata/trace_registry.jsonl
+trace_dir: math_repl/traces
+trace_name: train_poison007
+trace_path: math_repl/traces/train_poison007
+trace_colname: trace
+repetition_penalty: 1.0
+hydra:
+  run_dir: math_repl/metadata/{now:yyyy-MM-dd_HH-mm-ss}
+  job_name: gentraces
+  cwd: /antidistillation-sampling
+stats:
+  raw_accuracy: 0.1991991991991992
+  af_accuracy: 0.5125125125125125
+  trace_len_stats:
+    count: 999.0
+    mean: 1639.4144144144145
+    std: 425.89079630015345
+    min: 139.0
+    25%: 1538.5
+    50%: 1785.0
+    75%: 1913.5
+    max: 2050.0
