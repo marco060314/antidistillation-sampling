@@ -384,11 +384,9 @@ def main(cfg: DictConfig):
             # Compute antidistillation term using finite difference approximation
             ad_term = (self.lam / (2*self.eps)) * (out_target.float() - out_Dtarget.float())
             # Numerical guard: sanitize non-finite values from perturbed-proxy logits
-            ad_term = torch.nan_to_num(ad_term, nan=0.0, posinf=0.0, neginf=0.0)
 
             # Add antidistillation term to original logits
             scores = scores.float() + ad_term
-            scores = torch.nan_to_num(scores, nan=-1e9, posinf=1e9, neginf=-1e9)
             
             return scores
 
