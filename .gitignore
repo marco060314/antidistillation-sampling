@@ -8,3 +8,5 @@ math_repl/metadata/
 __pycache__/
 *.pyc
 .venv/
+outputs/
+gsm8k_repl/

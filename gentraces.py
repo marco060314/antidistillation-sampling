@@ -199,6 +199,7 @@ def main(cfg: DictConfig):
         tokenizer.eos_token_id = eos_token_id
         tokenizer.add_eos_token = False
         eos_token = tokenizer.eos_token
+        bos_token = tokenizer.bos_token or ""
     else:
         eos_token = tokenizer.eos_token
         bos_token = tokenizer.bos_token or ""

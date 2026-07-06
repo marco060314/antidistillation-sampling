@@ -147,6 +147,10 @@ if __name__ == "__main__":
             # Remove BOS token if present to avoid duplication
             if tokenizer.bos_token:
                 traces = [text.replace(tokenizer.bos_token, "", 1) for text in examples[args.trace_colname]]
+            else:
+                traces = list(examples[args.trace_colname])
+            else:
+                traces = list(examples[args.trace_colname])
             
             # Tokenize the traces
             tokenized = tokenizer(
