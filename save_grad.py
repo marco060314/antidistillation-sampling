@@ -149,8 +149,6 @@ if __name__ == "__main__":
                 traces = [text.replace(tokenizer.bos_token, "", 1) for text in examples[args.trace_colname]]
             else:
                 traces = list(examples[args.trace_colname])
-            else:
-                traces = list(examples[args.trace_colname])
             
             # Tokenize the traces
             tokenized = tokenizer(
